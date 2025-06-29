@@ -1,5 +1,4 @@
-rt(names, player.Name)
-		end
+
 -- Carregar a UI 
 local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/Library-ui/refs/heads/main/Redzhubui"))()
 
