@@ -108,28 +108,14 @@ do
     screenGui:Destroy()
 end
 
--- Tenta carregar a biblioteca com tratamento de erro
-local success, redzlib = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/Library-ui/refs/heads/main/Redzhubui"))()
-end)
+-- Carregar a UI 
+local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/Library-ui/refs/heads/main/Redzhubui"))()
 
-if not success then
-    warn("Erro ao carregar a biblioteca UI. Tentando método alternativo...")
-    -- Método alternativo ou notificação de erro
-    local StarterGui = game:GetService("StarterGui")
-    StarterGui:SetCore("SendNotification", {
-        Title = "KZ Hub Error";
-        Text = "Falha ao carregar interface. Verifique sua conexão.";
-        Duration = 5;
-    })
-    return
-end
-
--- Criação da janela principal
+--window
 local Window = redzlib:MakeWindow({
-    Title = "Kz Hub : Universal",
-    SubTitle = "by kzscripts",
-    SaveFolder = "kzhubsave.com"
+  Title = "Kz Hub : Universal",
+  SubTitle = "by kzscripts",
+  SaveFolder = "kzhubsave.com"
 })
 
 Window:AddMinimizeButton({
@@ -137,7 +123,6 @@ Window:AddMinimizeButton({
     Corner = { CornerRadius = UDim.new(35, 1) },
 })
 
--- ABA DISCORD
 local Tab1 = Window:MakeTab({"Discord", "mail"})
 
 Tab1:AddDiscordInvite({
@@ -147,51 +132,41 @@ Tab1:AddDiscordInvite({
     Invite = "https://discord.gg/mv6uWsNqSY",
 })
 
--- ABA MAIN
+
 local TabMain = Window:MakeTab({"Main", "home"})
+
 local Section = TabMain:AddSection({"Combate"})
 
--- ESP SYSTEM
+-- Toggle ESP
 local ESPEnabled = false
-local espObjects = {}
-
-local function createESP(player)
-    if player == LocalPlayer or not player.Character then return end
-    
-    local char = player.Character
-    if char:FindFirstChild("KZ_ESP") then return end
-    
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "KZ_ESP"
-    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.new(0, 0, 0)
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = char
-    highlight.Parent = char
-    
-    espObjects[player] = highlight
-end
-
-local function removeESP(player)
-    if espObjects[player] then
-        espObjects[player]:Destroy()
-        espObjects[player] = nil
-    end
-end
-
 TabMain:AddToggle({
     Name = "Ativar ESP",
     Flag = "ESP",
     Callback = function(state)
         ESPEnabled = state
         if ESPEnabled then
-            for _, player in ipairs(Players:GetPlayers()) do
-                createESP(player)
+            -- Exemplo básico de ESP com Highlight
+            for _, player in ipairs(game.Players:GetPlayers()) do
+                if player ~= game.Players.LocalPlayer then
+                    local char = player.Character
+                    if char and not char:FindFirstChild("KZ_ESP") then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "KZ_ESP"
+                        highlight.FillColor = Color3.fromRGB(255, 0, 0) -- vermelho padrão
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineColor = Color3.new(0, 0, 0)
+                        highlight.OutlineTransparency = 0
+                        highlight.Adornee = char
+                        highlight.Parent = char
+                    end
+                end
             end
         else
-            for _, player in ipairs(Players:GetPlayers()) do
-                removeESP(player)
+            for _, player in ipairs(game.Players:GetPlayers()) do
+                local char = player.Character
+                if char and char:FindFirstChild("KZ_ESP") then
+                    char.KZ_ESP:Destroy()
+                end
             end
         end
     end
@@ -210,20 +185,27 @@ TabMain:AddDropdown({
             ["Roxo"] = Color3.fromRGB(128, 0, 128)
         }
 
-        for _, highlight in pairs(espObjects) do
-            if highlight and highlight.Parent then
-                highlight.FillColor = cores[color] or Color3.fromRGB(255, 0, 0)
+        for _, player in ipairs(game.Players:GetPlayers()) do
+            local char = player.Character
+            if char and char:FindFirstChild("KZ_ESP") then
+                char.KZ_ESP.FillColor = cores[color] or Color3.fromRGB(255, 0, 0)
             end
         end
     end
 })
 
--- AIMBOT SYSTEM
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 local FOV = 200
 local aimbotEnabled = false
 local aimbotConnection = nil
 
+-- Função para encontrar inimigo mais próximo dentro da FOV
 local function GetClosestEnemy()
     local closest = nil
     local shortestDist = FOV
@@ -248,21 +230,19 @@ local function GetClosestEnemy()
     return closest
 end
 
-local function AimAtTarget(target)
+-- Função para mover o mouse até o alvo
+local function AimMouseAtTarget(target)
     if not target or not target.Character or not target.Character:FindFirstChild("Head") then return end
 
     local head = target.Character.Head  
     local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)  
 
     if onScreen then  
-        -- Usa método mais compatível para mover o mouse
-        local VirtualInputManager = game:GetService("VirtualInputManager")
-        pcall(function()
-            VirtualInputManager:SendMouseMoveEvent(screenPos.X, screenPos.Y, game, 0)
-        end)
+        VirtualInputManager:SendMouseMoveEvent(screenPos.X, screenPos.Y, game, 0)  
     end
 end
 
+-- Toggle na Redz Library
 TabMain:AddToggle({
     Name = "Aimbot",
     Flag = "AimbotMouse",
@@ -279,83 +259,95 @@ TabMain:AddToggle({
             aimbotConnection = RunService.RenderStepped:Connect(function()
                 local target = GetClosestEnemy()
                 if target then
-                    AimAtTarget(target)
+                    AimMouseAtTarget(target)
                 end
             end)
         end
     end
 })
 
--- PLAYER TELEPORT SYSTEM
+
+--aqui
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Função para obter nomes dos jogadores (exceto você)
 local function GetPlayerNames()
-    local names = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(names, player.Name)
-        end
-    end
-    return names
+	local names = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			table.insert(names, player.Name)
+		end
+	end
+	return names
 end
 
+-- Referência do dropdown (vai ser recriado no refresh)
 local playerDropdown
 
-local function CreatePlayerDropdown()
-    if playerDropdown and playerDropdown.Destroy then
-        pcall(function() playerDropdown:Destroy() end)
-    end
+-- Função para criar o dropdown
+local function CreateDropdown()
+	-- Se já existe, destrói antes de criar de novo
+	if playerDropdown and playerDropdown.Destroy then
+		playerDropdown:Destroy()
+	end
 
-    playerDropdown = TabMain:AddDropdown({
-        Name = "Players Teleport",
-        Default = nil,
-        Options = GetPlayerNames(),
-        Callback = function(selectedName)
-            local targetPlayer = Players:FindFirstChild(selectedName)
-            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local myChar = LocalPlayer.Character
-                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                    myChar.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-                end
-            end
-        end
-    })
+	playerDropdown = TabMain:AddDropdown({
+		Name = "Players Teleport",
+		Default = nil,
+		Options = GetPlayerNames(),
+		Callback = function(selectedName)
+			local targetPlayer = Players:FindFirstChild(selectedName)
+			if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+				if myHRP then
+					myHRP.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+				end
+			end
+		end
+	})
 end
 
-CreatePlayerDropdown()
+-- Cria o dropdown inicial
+CreateDropdown()
 
+-- Botão que "reinicia" o dropdown
 TabMain:AddButton({
-    Name = "Refresh Players",
-    Callback = function()
-        CreatePlayerDropdown()
-    end
+	Name = "Refresh Players",
+	Callback = function()
+		CreateDropdown()
+		print("Dropdown recriado com sucesso.")
+	end
 })
 
--- ABA PLAYER
+-- Atualiza automaticamente se jogadores entram ou saem
+Players.PlayerAdded:Connect(CreateDropdown)
+Players.PlayerRemoving:Connect(CreateDropdown)
+
+--final
+
 local TabPlayer = Window:MakeTab({"Player", "user"})
+
 local Section = TabPlayer:AddSection({"Player"})
 
 -- Infinite Jump
 TabPlayer:AddButton({
     Name = "Infinite Jump",
     Callback = function()
-        UserInputService.JumpRequest:Connect(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-            end
+        game:GetService("UserInputService").JumpRequest:Connect(function()
+            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
         end)
     end
 })
 
--- Fly
+-- Fly (simples)
 TabPlayer:AddButton({
     Name = "Fly",
     Callback = function()
-        pcall(function()
-            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Gui-Fly-v3-37111"))()
-        end)
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Gui-Fly-v3-37111"))()
     end
 })
 
--- JumpPower Slider
 TabPlayer:AddSlider({
     Name = "JumpPower",
     Min = 1,
@@ -363,22 +355,31 @@ TabPlayer:AddSlider({
     Increase = 1,
     Default = 50,
     Callback = function(Value)
-        local function setJumpPower(char)
-            local hum = char:FindFirstChild("Humanoid")
-            if hum then
-                hum.JumpPower = Value
-            end
-        end
-        
-        if LocalPlayer.Character then
-            setJumpPower(LocalPlayer.Character)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum.JumpPower = Value
         end
 
-        LocalPlayer.CharacterAdded:Connect(setJumpPower)
+        -- Reaplica ao morrer
+        game.Players.LocalPlayer.CharacterAdded:Connect(function(newChar)
+            local newHum = newChar:WaitForChild("Humanoid")
+            newHum.JumpPower = Value
+        end)
     end
 })
 
--- Speed Slider
+TabPlayer:AddSlider({
+    Name = "Dash Length",
+    Min = 1,
+    Max = 500,
+    Increase = 1,
+    Default = 50,
+    Callback = function(Value)
+        getgenv().DashLength = Value
+    end
+})
 TabPlayer:AddSlider({
     Name = "Speed",
     Min = 1,
@@ -386,34 +387,35 @@ TabPlayer:AddSlider({
     Increase = 1,
     Default = 16,
     Callback = function(Value)
-        local function setSpeed(char)
-            local hum = char:FindFirstChild("Humanoid")
-            if hum then
-                hum.WalkSpeed = Value
-            end
-        end
-        
-        if LocalPlayer.Character then
-            setSpeed(LocalPlayer.Character)
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum.WalkSpeed = Value
         end
 
-        LocalPlayer.CharacterAdded:Connect(setSpeed)
+        -- Reaplica ao morrer
+        game.Players.LocalPlayer.CharacterAdded:Connect(function(newChar)
+            local newHum = newChar:WaitForChild("Humanoid")
+            newHum.WalkSpeed = Value
+        end)
     end
 })
 
--- Invisibilidade
+local Section = TabPlayer:AddSection({"Adionais"})
+
 TabPlayer:AddToggle({
     Name = "Invisibilidade",
     Flag = "InvisToggle",
     Default = false,
     Callback = function(state)
-        local character = LocalPlayer.Character
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+
         if not character then return end
 
         for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.Transparency = state and 1 or 0
-            elseif part:IsA("Decal") then
+            if part:IsA("BasePart") or part:IsA("Decal") then
                 part.Transparency = state and 1 or 0
             elseif part:IsA("Accessory") then
                 local handle = part:FindFirstChild("Handle")
@@ -425,60 +427,78 @@ TabPlayer:AddToggle({
     end
 })
 
--- NoClip
-local noclipEnabled = false
-local noclipConnection
+-- Noclip
+local noclipAtivo = false
+local noclipConexao
+local partesOriginais = {}
+
+local function atualizarNoClip()
+    if not character then return end
+    
+    for _, parte in pairs(character:GetDescendants()) do
+        if parte:IsA("BasePart") then
+            if noclipAtivo then
+                if partesOriginais[parte] == nil then
+                    partesOriginais[parte] = parte.CanCollide
+                end
+                parte.CanCollide = false
+            else
+                if partesOriginais[parte] ~= nil then
+                    parte.CanCollide = partesOriginais[parte]
+                end
+            end
+        end
+    end
+end
 
 TabPlayer:AddToggle({
-    Name = "No Clip",
+    Title = "No Clip",
     Default = false,
     Callback = function(state)
-        noclipEnabled = state
+        noclipAtivo = state
         
-        if noclipConnection then
-            noclipConnection:Disconnect()
-        end
-        
-        if noclipEnabled then
-            noclipConnection = RunService.Stepped:Connect(function()
-                local character = LocalPlayer.Character
-                if character then
-                    for _, part in pairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end)
+        if noclipAtivo then
+            if not noclipConexao then
+                noclipConexao = RunService.Stepped:Connect(atualizarNoClip)
+            end
+        else
+            if noclipConexao then
+                noclipConexao:Disconnect()
+                noclipConexao = nil
+            end
+            atualizarNoClip()
         end
     end
 })
 
--- Gravity
 TabPlayer:AddTextBox({
     Name = "Gravity",
     Description = "Digite o valor da gravidade",
-    PlaceholderText = "196.2",
+    PlaceholderText = "Gravity",
     Callback = function(Value)
         local num = tonumber(Value)
-        if num and num >= 0 then
-            Workspace.Gravity = num
+        if num and num > 0 then
+            game.Workspace.Gravity = num
+            print("Gravidade definida para: " .. num)
+        else
+            warn("Valor inválido. Digite um número maior que 0.")
         end
     end
 })
 
--- ABA TELEPORT
-local TabTeleport = Window:MakeTab({"Teleport", "trending-up"})
+local TabTeleport= Window:MakeTab({"Teleport", "trending-up"})
+
 local Section = TabTeleport:AddSection({"Local Teleport"})
 
-local savedPosition = nil
+local posSalva = nil
 
 TabTeleport:AddButton({
     Name = "Setar Local",
     Callback = function()
-        local char = LocalPlayer.Character
+        local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
-            savedPosition = char.HumanoidRootPart.CFrame
+            posSalva = char.HumanoidRootPart.CFrame
+            print("Local salvo com sucesso!")
         end
     end
 })
@@ -486,39 +506,124 @@ TabTeleport:AddButton({
 TabTeleport:AddButton({
     Name = "Voltar",
     Callback = function()
-        if not savedPosition then return end
-        
-        local char = LocalPlayer.Character
+        if not posSalva then
+            warn("Nenhum local foi salvo!")
+            return
+        end
+        local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = savedPosition
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local root = char.HumanoidRootPart
+            if humanoid then
+                humanoid.PlatformStand = true
+                local tempo = 5.5
+                local inicio = tick()
+                local origem = root.Position
+                local destino = posSalva.Position
+                while tick() - inicio < tempo do
+                    local alpha = (tick() - inicio) / tempo
+                    root.CFrame = CFrame.new(origem:Lerp(destino, alpha), destino)
+                    root.Velocity = Vector3.zero
+                    game:GetService("RunService").Heartbeat:Wait()
+                end
+                root.CFrame = posSalva
+                task.wait(0.5)
+                humanoid.PlatformStand = false
+            end
         end
     end
 })
 
--- ABA MISC
-local TabMisc = Window:MakeTab({"Misc", "folder"})
+local Section = TabTeleport:AddSection({"Teleport Player"})
+
+--aqui
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Função para obter nomes dos jogadores (exceto você)
+local function GetPlayerNames()
+	local names = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			table.insert(names, player.Name)
+		end
+	end
+	return names
+end
+
+-- Referência do dropdown (vai ser recriado no refresh)
+local playerDropdown
+
+-- Função para criar o dropdown
+local function CreateDropdown()
+	-- Se já existe, destrói antes de criar de novo
+	if playerDropdown and playerDropdown.Destroy then
+		playerDropdown:Destroy()
+	end
+
+	playerDropdown = TabTeleport:AddDropdown({
+		Name = "Players Teleport",
+		Default = nil,
+		Options = GetPlayerNames(),
+		Callback = function(selectedName)
+			local targetPlayer = Players:FindFirstChild(selectedName)
+			if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+				if myHRP then
+					myHRP.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+				end
+			end
+		end
+	})
+end
+
+-- Cria o dropdown inicial
+CreateDropdown()
+
+-- Botão que "reinicia" o dropdown
+TabTeleport:AddButton({
+	Name = "Refresh Players",
+	Callback = function()
+		CreateDropdown()
+		print("Dropdown recriado com sucesso.")
+	end
+})
+
+-- Atualiza automaticamente se jogadores entram ou saem
+Players.PlayerAdded:Connect(CreateDropdown)
+Players.PlayerRemoving:Connect(CreateDropdown)
+--final
+
+
+local TabMisc= Window:MakeTab({"Misc", "folder"})
+
 local Section = TabMisc:AddSection({"Scripts"})
 
+--infinity yeld
 TabMisc:AddButton({
-    Name = "Infinite Yield",
+    Name = "Infinite Yeld",
     Callback = function()
-        pcall(function()
-            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
-        end)
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
     end
 })
 
 TabMisc:AddButton({
-    Name = "Roblox Realms",
+    Name = "Roblox Realms ",
     Callback = function()
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/lucaszedamanga/key_system/refs/heads/main/README.md"))()
-        end)
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/lucaszedamanga/key_system/refs/heads/main/README.md"))()
     end
 })
 
--- ABA SETTINGS
+local Section = TabMisc:AddSection({"Teams"})
+
+local Paragraph = TabMisc:AddParagraph({"Kz Hub Team", "This is my Team, KZ Hub developers, if you want to be part of it, join Discord. "})
+
+local Paragraph = TabMisc:AddParagraph({"Roblox Realms Team", "This is my friend's Team, Roblox Realms developers, if you want to be part of it, join Discord. "})
+
+
 local TabSettings = Window:MakeTab({"Settings", "settings"})
+
+
 
 -- Anti-AFK
 local AntiAfkConnection
@@ -528,70 +633,20 @@ TabSettings:AddToggle({
     Flag = "AntiAFK",
     Default = false,
     Callback = function(enabled)
-        if AntiAfkConnection then
-            AntiAfkConnection:Disconnect()
-            AntiAfkConnection = nil
-        end
-
+        -- Se ativar
         if enabled then
-            AntiAfkConnection = LocalPlayer.Idled:Connect(function()
-                local VirtualUser = game:GetService("VirtualUser")
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            end)
-        end
-    end
-})
-
--- FPS Boost
-TabSettings:AddButton({
-    Name = "FPS Boost",
-    Callback = function()
-        local lighting = game:GetService("Lighting")
-        lighting.GlobalShadows = false
-        lighting.FogEnd = 1e10
-        lighting.Brightness = 0
-        
-        for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.Material = Enum.Material.SmoothPlastic
-                v.Reflectance = 0
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                v:Destroy()
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v.Enabled = false
+            -- Previne múltiplas conexões
+            if AntiAfkConnection then
+                AntiAfkConnection:Disconnect()
             end
-        end
-        
-        pcall(function()
-            setfpscap(60)
-        end)
-    end
-})
 
--- Reset Player
-TabSettings:AddButton({
-    Name = "Reset Player",
-    Callback = function()
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.Health = 0
-        end
-    end
-})
+            AntiAfkConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
+                local vu = game:GetService("VirtualUser")
+                vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
 
--- Conecta eventos para ESP automático
-Players.PlayerAdded:Connect(function(player)
-    if ESPEnabled then
-        player.CharacterAdded:Connect(function()
-            wait(1)
-            createESP(player)
-        end)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    removeESP(player)
-end)
-
-print("KZ Hub carregado com sucesso!")
+        -- Se desativar
+        elseif AntiAfkConnection then
+       
